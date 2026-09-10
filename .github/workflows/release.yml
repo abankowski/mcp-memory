@@ -27,7 +27,10 @@ jobs:
       # Trusted Publishing exchanges this OIDC token for a 30-minute crates.io
       # token. The action revokes it when the job ends.
       id-token: write
-      contents: read
+      # `contents: write` lets the job mark the GitHub release as a prerelease
+      # when the tag says so. The job already publishes to crates.io, so this
+      # is not a meaningful escalation.
+      contents: write
     env:
       # The `secrets` context is not available in a step `if`, but it is
       # available here. The value is a string, "true" or "false".
@@ -43,21 +46,30 @@ jobs:
       - name: Tag, semver and crates.io agree
         run: scripts/check-release-version.sh --registry "${{ github.event.release.tag_name || inputs.tag }}"
 
-      - name: A prerelease version needs a prerelease GitHub release
+      - name: The tag decides whether this is a prerelease
         if: github.event_name == 'release'
         env:
           TAG: ${{ github.event.release.tag_name }}
           IS_PRERELEASE: ${{ github.event.release.prerelease }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           case "${TAG#v}" in
-          *-*) semver_prerelease=true ;;
-          *) semver_prerelease=false ;;
+          *-*) tag_is_prerelease=true ;;
+          *) tag_is_prerelease=false ;;
           esac
-          if [ "${semver_prerelease}" != "${IS_PRERELEASE}" ]; then
-            echo "::error::tag ${TAG} is prerelease=${semver_prerelease}, GitHub release is prerelease=${IS_PRERELEASE}"
+          if [ "${tag_is_prerelease}" = "${IS_PRERELEASE}" ]; then
+            echo "tag ${TAG} and the GitHub release agree on prerelease=${IS_PRERELEASE}"
+          elif [ "${tag_is_prerelease}" = "true" ]; then
+            # The semver tag is unambiguous, and the checkbox is presentation.
+            # Correct the release instead of asking for a delete and a re-create.
+            echo "::notice::tag ${TAG} is a semver prerelease; marking the GitHub release as a prerelease"
+            gh release edit "${TAG}" --prerelease --repo "${GITHUB_REPOSITORY}"
+          else
+            # The opposite direction is ambiguous: either the tag is wrong or
+            # the flag is. Refuse to guess.
+            echo "::error::tag ${TAG} is a stable version but the GitHub release is marked as a prerelease; fix one of them"
             exit 1
           fi
-          echo "tag ${TAG} and the GitHub release agree on prerelease=${IS_PRERELEASE}"
 
       - name: The released commit is on main
         if: github.event_name == 'release'

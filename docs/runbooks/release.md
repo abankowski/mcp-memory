@@ -11,8 +11,11 @@ The commands below are identical in Bash and fish.
 - A tag is `v` plus the version, for example `v1.0.0`.
 - The version is strict semver 2.0.0. Build metadata is rejected: crates.io
   stores it, but no dependency can request it, so the release is unreachable.
-- A prerelease version, for example `1.0.0-rc.1`, needs a GitHub release that
-  is marked as a prerelease. The workflow fails when the two disagree.
+- The tag decides whether a release is a prerelease. A version with a hyphen,
+  for example `1.0.0-rc.1`, is a prerelease. When the GitHub release lacks the
+  prerelease flag, the workflow sets it and continues. The opposite case, a
+  stable tag on a release marked as a prerelease, is ambiguous, so the
+  workflow fails and changes nothing.
 - The released commit must be an ancestor of `origin/main`.
 
 `scripts/check-release-version.sh` enforces every rule above. Ordinary CI runs
@@ -34,8 +37,8 @@ Do not use `0.0.1` for this. It is a stable version, it is permanent, and
 `0.x` states that the API may break at any time, which is not what this
 release means.
 
-Mark the GitHub release as a prerelease. The workflow compares the tag with
-that flag and fails when they disagree.
+Add `--prerelease` when you create the release. Forgetting it is not fatal:
+the workflow sets the flag from the tag and continues.
 
 ## Prepare a release
 
