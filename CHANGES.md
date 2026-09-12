@@ -31,6 +31,14 @@ This entry lists every change since that snapshot. The version line restarts at
   worker's own `validate_endpoint` rule (https, port 443, hostname, no
   fragment), and `secretRef` is a name, never key material.
 
+- **Scala support in the code indexer.** The tree-sitter grammar set grows
+  from 11 to 12; `code_index` now parses `.scala` and `.sc` files into the
+  symbol map (packages, classes, objects, traits, enums, functions, vals,
+  vars, type aliases and constructor parameters). The tags query is vendored
+  in `src/code/lang.rs` because the published `tree-sitter-scala` crate
+  exports no `TAGS_QUERY` constant; it is a verbatim copy of the upstream
+  `queries/tags.scm`, cited in-repo.
+
 - **The server computes embeddings.** Name `provider`, `model` and
   `dimensions` in the `[indexer]` section, and the server adopts an index
   profile at startup and embeds entity text by itself. Adoption compares the
